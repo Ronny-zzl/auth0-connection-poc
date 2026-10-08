@@ -197,13 +197,33 @@
       </div>
 
       <div class="issue">
-        <h3>法人アカウントのセルフサインアップを許可するか</h3>
-        <p>PoC では、<code>connection</code> を指定すればその DB に登録され、指定しないと個人の DB に登録された。法人アカウントを管理者が発行する運用なら、<code>corporate-database</code> のサインアップを止められる。</p>
+        <h3>法人アカウントのセルフサインアップを許可するか<span class="tag">決定</span></h3>
+        <p><b>許可しない。</b>法人のアカウントは、申込フォームの送信後にシステムが発行する（法人管理者と各受検者の分をまとめて）。そのため <code>corporate-database</code> の Disable Sign Ups を有効にする。</p>
+        <p>発行はバックエンドから Auth0 の Management API で行い、<code>connection</code> に <code>corporate-database</code> を指定する。法人番号と役割（管理者／受検者）は <code>app_metadata</code> に持たせる。PoC では、<code>connection</code> を指定するとその DB に登録され、指定しないと個人の DB に登録されることを確認している。</p>
+        <p>受検者は全員メールアドレスを持ち、通知も本人に直接届く前提。ログイン ID はメールアドレスでよく、パスワードを忘れたときも本人がメールでリセットできる。受検者が多い法人では、API を 1 件ずつ呼ぶとレート制限にかかるおそれがあるので、一括インポートも検討する。</p>
       </div>
 
       <div class="issue">
         <h3>カスタムドメイン（例：<code>auth.〇〇.jp</code>）を使うか</h3>
         <p>ログイン画面の URL が自社ドメインになる。Page Templates と ACUL の前提条件でもあるので、Q1 で出し分けを選ぶならセットで決める。</p>
+      </div>
+
+      <div class="issue">
+        <h3>アカウント発行の通知メールに、初期パスワードを書くか</h3>
+        <p>今の要件では、ログイン ID と初期パスワードを受検者本人にメールで送る。Auth0 には、本人にパスワードを設定してもらうリンク（Password Change Ticket）を発行する機能もある。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th></th><th>A. 初期パスワード（今の要件）</th><th>B. パスワード設定リンク</th></tr></thead>
+            <tbody>
+              <tr><th>メールの内容</th><td>ログイン ID と初期パスワード（平文）</td><td>ログイン ID と、パスワード設定のリンク</td></tr>
+              <tr><th>初回ログイン</th><td>初期パスワードでログインしてから変更する</td><td>リンクから自分で設定してからログインする</td></tr>
+              <tr><th>初回の変更強制</th><td>強制するかどうかが未決。強制する場合、Auth0 に標準機能がないため、Post-Login Action と変更画面を自作する</td><td class="changed">論点にならない。最初から本人が決めたパスワードになる</td></tr>
+              <tr><th>安全性</th><td>メールを第三者に見られると、そのままログインされる</td><td class="changed">リンクは 1 回限りで、有効期限がある</td></tr>
+              <tr><th>利用者の手間</th><td>従来どおりで慣れている</td><td>リンクの期限が切れたら再発行が必要</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>提案は B。通知メールの「初期パスワード」を「設定リンク」に置き換えるだけで、初回のパスワード変更を強制するかという論点がなくなる。A のまま変更を強制する場合は、その実装工数を見込む。</p>
       </div>
     </div>
   </section>
