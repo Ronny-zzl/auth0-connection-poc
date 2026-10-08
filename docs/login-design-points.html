@@ -82,7 +82,9 @@
   .issue h3 { display: flex; gap: .6em; align-items: baseline; }
   .issue h3::before { counter-increment: q; content: "Q" counter(q); font: 500 .8rem var(--font-mono); color: var(--accent); }
   .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 10px; }
-  .opt { border-top: 2px solid var(--line); padding-top: 8px; display: grid; gap: 4px; min-width: 0; }
+  .options.two { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+  @media (max-width: 640px) { .options.two { grid-template-columns: 1fr; } }
+  .opt { border-top: 2px solid var(--line); padding-top: 8px; display: grid; gap: 4px; align-content: start; min-width: 0; }
   .opt b { font-family: var(--font-display); font-weight: 500; }
   .opt p, .opt li { font-size: .88rem; color: var(--muted); }
   .opt.rec { border-top-color: var(--accent); }
@@ -95,7 +97,7 @@
 <body>
 <div class="wrap">
   <header style="display:grid;gap:10px">
-    <span class="eyebrow">討議用メモ · 2026-10-08</span>
+    <span class="eyebrow">討議用メモ · 2026-10-08 更新</span>
     <h1>個人／法人ログインの画面構成</h1>
     <p class="lead">Auth0 の Universal Login を使う前提で、ログイン画面をどう分担するかを決めたい。PoC の結果と、決める必要がある論点をまとめた。</p>
   </header>
@@ -156,19 +158,25 @@
     <div class="issues">
       <div class="issue">
         <h3>Auth0 の画面で、個人と法人を見分けられるようにするか</h3>
-        <p>標準の設定（ロゴ・色・文言）では、connection ごとに表示を変えるのは難しい。「法人ログイン」と出したいなら、追加のカスタマイズが要る。</p>
-        <div class="options">
+        <p>PoC テナントで試したところ、<b>文言のカスタマイズでは connection ごとに表示を変えられない</b>。変数 <code>${connectionName}</code> はデータベースのログイン画面では空になる。一方、アプリ名の <code>${clientName}</code> は表示される。</p>
+        <div class="options two">
           <div class="opt rec">
             <b>標準のまま<span class="tag">工数小</span></b>
             <p>Dashboard でロゴ・色・日本語の文言を設定するだけ。どちらのモードでも同じ画面になる。直前のアプリ画面でモードは選んでいるので、混乱は少ないと考えられる。</p>
           </div>
           <div class="opt">
+            <b>アプリを個人用・法人用に分ける<span class="tag">一部検証済み</span></b>
+            <p>Application を 2 つ作り、それぞれ 1 つの connection だけを有効にする。アプリ名が画面に出るので「法人ログイン」などと表示でき、カスタムドメインも不要。</p>
+            <p>検証済み：別の connection を指定すると Auth0 が拒否する（<code>the connection is not enabled</code>）ので、connection の書き換えが効かない。<code>connection</code> を付けなくても正しい DB の画面になる。</p>
+            <p>代償：Client ID が 2 つになり、バックエンドは 2 種類の <code>aud</code> を受け付ける必要がある。</p>
+          </div>
+          <div class="opt">
             <b>Page Templates で出し分け</b>
-            <p>Liquid テンプレートでログイン枠の周りを変える。カスタムドメインが必須。設定は Management API からのみ。</p>
+            <p>Liquid テンプレートでログイン枠の周りを変える。カスタムドメインが必須（Dashboard 上でも、テンプレートの定義が先に必要と表示される）。設定は Management API からのみ。</p>
           </div>
           <div class="opt">
             <b>ACUL で画面を作る</b>
-            <p>Auth0 の SDK を使って自前のフロントエンドで画面を作る。セキュリティ処理は Auth0 側のまま。カスタムドメインが必須。</p>
+            <p>Auth0 の SDK を使って自前のフロントエンドで画面を作る。セキュリティ処理は Auth0 側のまま。Dashboard の Advanced mode で、カスタムドメインが必須と表示される。</p>
           </div>
         </div>
       </div>
@@ -204,7 +212,8 @@
     <h2>まだ確認できていないこと</h2>
     <ul>
       <li>Page Templates と ACUL が、どの料金プランで使えるか。ドキュメントに明記がないので Auth0 に確認する。</li>
-      <li>文言のカスタマイズだけで、connection ごとに表示を変えられるか。必要なら PoC テナントで試す。</li>
+      <li>アプリを分ける案で、2 つのアプリ間の SSO セッションの挙動と、実際のログインからトークン取得までの流れ。</li>
+      <li>PoC テナントは試用期間中（残り約 3 週間）で、Free プランにない機能も使える状態。料金プランを確認するときは、この点に注意する。</li>
       <li>Auth0 Organizations で法人を管理する方式との比較。</li>
     </ul>
   </section>
