@@ -6,12 +6,12 @@
 
 Applications → 対象アプリ → **Settings**
 
-| 項目 | 値 |
-|---|---|
-| Application Type | Single Page Application |
+| 項目                  | 値                                                  |
+| --------------------- | --------------------------------------------------- |
+| Application Type      | Single Page Application                             |
 | Allowed Callback URLs | `https://ronny-zzl.github.io/auth0-connection-poc/` |
-| Allowed Logout URLs | 同上 |
-| Allowed Web Origins | 同上 |
+| Allowed Logout URLs   | 同上                                                |
+| Allowed Web Origins   | 同上                                                |
 
 Domain と Client ID は [index.html](index.html) の `CONFIG` に書く（どちらも公開して問題ない値）。
 
@@ -37,10 +37,16 @@ Actions → Library → **Create Action** → Build from scratch
 
 ```js
 exports.onExecutePostLogin = async (event, api) => {
-  const ns = 'https://ronny-zzl.github.io/auth0-connection-poc/';
-  api.idToken.setCustomClaim(ns + 'connection', event.connection.name);
-  api.idToken.setCustomClaim(ns + 'corporateNumbers', event.user.app_metadata?.corporateNumbers ?? []);
-  api.idToken.setCustomClaim(ns + 'authMethods', event.authentication?.methods ?? []);
+  const ns = "https://ronny-zzl.github.io/auth0-connection-poc/";
+  api.idToken.setCustomClaim(ns + "connection", event.connection.name);
+  api.idToken.setCustomClaim(
+    ns + "corporateNumbers",
+    event.user.app_metadata?.corporateNumbers ?? [],
+  );
+  api.idToken.setCustomClaim(
+    ns + "authMethods",
+    event.authentication?.methods ?? [],
+  );
 };
 ```
 

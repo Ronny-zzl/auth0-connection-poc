@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>個人／法人ログインの画面構成</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: 1 カラムの討議メモ。上から「前提 → 流れ → 差分 → 論点 → 未確認」 */
+  :root {
+    --bg: #f5f7f7;
+    --surface: #ffffff;
+    --fg: #17201f;
+    --muted: #5a6866;
+    --line: #d6dfde;
+    --accent: #0f5c63;
+    --accent-soft: #e2efef;
+    --auth0: #6b4a12;
+    --auth0-soft: #f6eedd;
+    --code: #e9eeee;
+    --font-display: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+    --font-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111717; --surface: #182120; --fg: #e3eae9; --muted: #98a8a6; --line: #2b3837;
+      --accent: #6cc3c9; --accent-soft: #1b3436; --auth0: #e2b866; --auth0-soft: #33291a; --code: #222d2c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111717; --surface: #182120; --fg: #e3eae9; --muted: #98a8a6; --line: #2b3837;
+    --accent: #6cc3c9; --accent-soft: #1b3436; --auth0: #e2b866; --auth0-soft: #33291a; --code: #222d2c;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  body { background: var(--bg); color: var(--fg); font: 15px/1.8 var(--font-body); }
+  .wrap { max-width: 46rem; margin: 0 auto; padding-inline: 16px; padding-block: 40px 72px; display: grid; gap: 40px; }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.4; margin: 0; }
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.2rem; display: flex; gap: .6em; align-items: baseline; }
+  h3 { font-size: 1rem; }
+  p, ul, ol { margin: 0; }
+  section { display: grid; gap: 14px; min-width: 0; }
+  .eyebrow { font: 500 .75rem/1 var(--font-mono); letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+  .lead { color: var(--muted); }
+  code { font: .85em var(--font-mono); background: var(--code); padding: .1em .35em; border-radius: 4px; }
+  ul { padding-left: 1.2em; display: grid; gap: 4px; }
+  a { color: var(--accent); }
+
+  /* 流れ */
+  .flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 10px; align-items: stretch; }
+  .step { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .step .where { font: 500 .72rem/1.4 var(--font-mono); letter-spacing: .04em; }
+  .step.app .where { color: var(--accent); }
+  .step.auth0 { background: var(--auth0-soft); border-color: transparent; }
+  .step.auth0 .where { color: var(--auth0); }
+  .step p { font-size: .88rem; color: var(--muted); }
+  .arrow { align-self: center; color: var(--muted); font-family: var(--font-mono); }
+  @media (max-width: 640px) {
+    .flow { grid-template-columns: 1fr; }
+    .arrow { justify-self: center; transform: rotate(90deg); }
+  }
+
+  /* 表 */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: .9rem; }
+  th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  thead th { font: 500 .75rem/1.4 var(--font-mono); letter-spacing: .04em; color: var(--muted); background: var(--bg); }
+  tbody th { font-weight: 500; white-space: nowrap; }
+  td.changed { background: var(--accent-soft); }
+
+  /* 論点 */
+  .issues { display: grid; gap: 14px; counter-reset: q; }
+  .issue { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 10px; min-width: 0; }
+  .issue h3 { display: flex; gap: .6em; align-items: baseline; }
+  .issue h3::before { counter-increment: q; content: "Q" counter(q); font: 500 .8rem var(--font-mono); color: var(--accent); }
+  .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 10px; }
+  .opt { border-top: 2px solid var(--line); padding-top: 8px; display: grid; gap: 4px; min-width: 0; }
+  .opt b { font-family: var(--font-display); font-weight: 500; }
+  .opt p, .opt li { font-size: .88rem; color: var(--muted); }
+  .opt.rec { border-top-color: var(--accent); }
+  .tag { font: 500 .7rem/1 var(--font-mono); color: var(--accent); background: var(--accent-soft); padding: 3px 6px; border-radius: 3px; margin-left: .4em; vertical-align: 2px; }
+
+  .confirmed li::marker { content: "✓  "; color: var(--accent); }
+  footer { font-size: .8rem; color: var(--muted); display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header style="display:grid;gap:10px">
+    <span class="eyebrow">討議用メモ · 2026-10-08</span>
+    <h1>個人／法人ログインの画面構成</h1>
+    <p class="lead">Auth0 の Universal Login を使う前提で、ログイン画面をどう分担するかを決めたい。PoC の結果と、決める必要がある論点をまとめた。</p>
+  </header>
+
+  <section>
+    <h2>PoC で確認できたこと</h2>
+    <ul class="confirmed">
+      <li>個人と法人を別々の Database Connection に分け、<code>connection</code> パラメータで切り替える方式は Auth0 の標準機能で動く。</li>
+      <li>同じメールアドレスでも、個人と法人は別ユーザー（<code>sub</code> が別）になる。パスワード、リセット、ロックもそれぞれ独立している。</li>
+      <li><code>connection</code> はクライアント側で書き換えられる。認証後に、トークンの connection と選択したモードが一致するかの検証が必須。</li>
+      <li>個人でログイン済みでも、法人を要求すると Auth0 がパスワードの再入力を求める。取り違えは起きない。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Universal Login を使うとログインはこう流れる</h2>
+    <p>Universal Login は Auth0 がホストするログイン画面で、パスワードは Auth0 のドメインで入力する。アプリはパスワードに触れない。PoC のポップアップに出ていた画面がこれにあたる。</p>
+    <div class="flow" aria-label="ログインの流れ">
+      <div class="step app">
+        <span class="where">アプリの画面</span>
+        <h3>モードと法人を選ぶ</h3>
+        <p>個人／法人タブ、法人名の検索、法人番号の選択。パスワードは扱わない。</p>
+      </div>
+      <span class="arrow" aria-hidden="true">→</span>
+      <div class="step auth0">
+        <span class="where">Auth0 の画面（/u/login）</span>
+        <h3>メールとパスワード</h3>
+        <p>選ばれた connection の入力欄だけが出る。リセット、MFA、ロックもここで処理される。</p>
+      </div>
+      <span class="arrow" aria-hidden="true">→</span>
+      <div class="step app">
+        <span class="where">アプリ／バックエンド</span>
+        <h3>トークンを検証する</h3>
+        <p>connection が選択したモードと一致するか、法人番号に所属しているかを確認する。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>現在の sample との違い</h2>
+    <p>sample はメールとパスワードをアプリの画面で入力させている。Universal Login にすると、入力の場所が 2 つの画面に分かれる。</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>項目</th><th>現在の sample</th><th>Universal Login 採用時</th></tr></thead>
+        <tbody>
+          <tr><th>個人／法人タブ</th><td>アプリのログイン画面</td><td>アプリの画面（変わらない）</td></tr>
+          <tr><th>法人名の検索・選択</th><td>アプリのログイン画面</td><td>アプリの画面（変わらない）</td></tr>
+          <tr><th>メール・パスワード入力</th><td>アプリのログイン画面</td><td class="changed">Auth0 の画面に移る</td></tr>
+          <tr><th>Auth0 画面の見た目</th><td>なし</td><td class="changed">個人・法人とも同じ見た目（標準のまま）</td></tr>
+          <tr><th>所属チェック</th><td>ログイン画面の処理内</td><td class="changed">認証後に Action かバックエンドで行う</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>決めたいこと</h2>
+    <div class="issues">
+      <div class="issue">
+        <h3>Auth0 の画面で、個人と法人を見分けられるようにするか</h3>
+        <p>標準の設定（ロゴ・色・文言）では、connection ごとに表示を変えるのは難しい。「法人ログイン」と出したいなら、追加のカスタマイズが要る。</p>
+        <div class="options">
+          <div class="opt rec">
+            <b>標準のまま<span class="tag">工数小</span></b>
+            <p>Dashboard でロゴ・色・日本語の文言を設定するだけ。どちらのモードでも同じ画面になる。直前のアプリ画面でモードは選んでいるので、混乱は少ないと考えられる。</p>
+          </div>
+          <div class="opt">
+            <b>Page Templates で出し分け</b>
+            <p>Liquid テンプレートでログイン枠の周りを変える。カスタムドメインが必須。設定は Management API からのみ。</p>
+          </div>
+          <div class="opt">
+            <b>ACUL で画面を作る</b>
+            <p>Auth0 の SDK を使って自前のフロントエンドで画面を作る。セキュリティ処理は Auth0 側のまま。カスタムドメインが必須。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="issue">
+        <h3>パスワードをアプリの画面で入力させる必要はあるか</h3>
+        <p>sample と同じ体験を残す案（Embedded Login）。Auth0 は推奨していない。</p>
+        <div class="options">
+          <div class="opt rec">
+            <b>Universal Login に寄せる<span class="tag">推奨</span></b>
+            <p>パスワードを扱わずに済む。パスキー、MFA、Bot 検知、ブルートフォース保護がそのまま使える。</p>
+          </div>
+          <div class="opt">
+            <b>アプリの画面で入力する</b>
+            <p>上の機能の多くを自前で補う必要がある。サードパーティ Cookie の制限の影響も受ける。採るなら理由を明確にしたい。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="issue">
+        <h3>法人アカウントのセルフサインアップを許可するか</h3>
+        <p>PoC では、<code>connection</code> を指定すればその DB に登録され、指定しないと個人の DB に登録された。法人アカウントを管理者が発行する運用なら、<code>corporate-database</code> のサインアップを止められる。</p>
+      </div>
+
+      <div class="issue">
+        <h3>カスタムドメイン（例：<code>auth.〇〇.jp</code>）を使うか</h3>
+        <p>ログイン画面の URL が自社ドメインになる。Page Templates と ACUL の前提条件でもあるので、Q1 で出し分けを選ぶならセットで決める。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>まだ確認できていないこと</h2>
+    <ul>
+      <li>Page Templates と ACUL が、どの料金プランで使えるか。ドキュメントに明記がないので Auth0 に確認する。</li>
+      <li>文言のカスタマイズだけで、connection ごとに表示を変えられるか。必要なら PoC テナントで試す。</li>
+      <li>Auth0 Organizations で法人を管理する方式との比較。</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>参考：<a href="https://auth0.com/docs/authenticate/login/auth0-universal-login/universal-login-vs-classic-login" target="_blank" rel="noopener">Universal Login vs. Classic Login</a> ／ <a href="https://auth0.com/docs/customize/login-pages/universal-login/customize-templates" target="_blank" rel="noopener">Page Templates</a> ／ <a href="https://auth0.com/docs/customize/login-pages/advanced-customizations" target="_blank" rel="noopener">Advanced Customizations (ACUL)</a></span>
+    <span>PoC：<a href="https://ronny-zzl.github.io/auth0-connection-poc/" target="_blank" rel="noopener">検証ページ</a></span>
+  </footer>
+</div>
+</body>
+</html>
