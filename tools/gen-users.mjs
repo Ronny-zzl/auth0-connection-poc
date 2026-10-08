@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Auth0「User Import / Export」拡張機能用のテストユーザー JSON を生成する。
 //   node tools/gen-users.mjs you@gmail.com
-// 出力先は private/（.gitignore 済み）。パスワードは実行のたびにランダム生成。
+// Import 用 JSON は private/（.gitignore 済み）、平文の一覧は accounts.json に出す。
+// パスワードは実行のたびにランダム生成。
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -49,14 +50,9 @@ mkdirSync('private', { recursive: true });
 writeFileSync('private/personal-database.json', JSON.stringify(accounts.map((a) => toUser(a, 'personal')), null, 2) + '\n');
 writeFileSync('private/corporate-database.json', JSON.stringify(accounts.map((a) => toUser(a, 'corporate')), null, 2) + '\n');
 
-const rows = accounts.map((a) => `| ${alias(a.tag)} | \`${a.personal}\` | \`${a.corporate}\` | ${a.purpose} |`);
-writeFileSync('private/accounts.md', [
-  '# テストアカウント（このファイルは公開しない）',
-  '',
-  '| メール | personal-database | corporate-database | 用途 |',
-  '|---|---|---|---|',
-  ...rows,
-  '',
-].join('\n'));
+// 検証ページが読み込んで表示する（使い捨てテナントのテスト用なので公開する）
+writeFileSync('accounts.json', JSON.stringify(accounts.map((a) => ({
+  tag: a.tag, email: alias(a.tag), personal: a.personal, corporate: a.corporate, purpose: a.purpose,
+})), null, 2) + '\n');
 
-console.log('generated: private/personal-database.json, private/corporate-database.json, private/accounts.md');
+console.log('generated: private/personal-database.json, private/corporate-database.json, accounts.json');

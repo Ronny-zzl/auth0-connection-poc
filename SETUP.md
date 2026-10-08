@@ -54,11 +54,11 @@ User Import / Export 拡張機能で JSON を取り込む。
 node tools/gen-users.mjs 受信できるメールアドレス
 ```
 
-`private/`（git 管理外）に次の 3 ファイルができる。
+次の 3 ファイルができる。
 
-- `personal-database.json`：personal-database に Import する
-- `corporate-database.json`：corporate-database に Import する
-- `accounts.md`：平文パスワード。公開しないこと
+- `private/personal-database.json`：personal-database に Import する（git 管理外）
+- `private/corporate-database.json`：corporate-database に Import する（git 管理外）
+- `accounts.json`：平文パスワードの一覧。検証ページに表示されるのでコミットする
 
 Extensions → User Import / Export → Import で、connection を選んでそれぞれアップロードする。再生成するとパスワードが変わるので、取り込み直すときは Upsert にチェックを入れる。
 

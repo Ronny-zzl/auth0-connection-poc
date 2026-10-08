@@ -1,0 +1,23 @@
+[
+  {
+    "tag": "taro",
+    "email": "ziliang_zhang+taro@bita.jp",
+    "personal": "TaroP-y3A1kEju-9a",
+    "corporate": "TaroC-cEoNiGQ9-9a",
+    "purpose": "ケース1〜8（基本）"
+  },
+  {
+    "tag": "jiro",
+    "email": "ziliang_zhang+jiro@bita.jp",
+    "personal": "Jiro-Wd1dWq3L-9a",
+    "corporate": "Jiro-Wd1dWq3L-9a",
+    "purpose": "同じパスワードでも別アカウントか"
+  },
+  {
+    "tag": "lock",
+    "email": "ziliang_zhang+lock@bita.jp",
+    "personal": "LockP-yOtdByCV-9a",
+    "corporate": "LockC-eVYH-Vqo-9a",
+    "purpose": "ケース9（ブルートフォース保護）専用"
+  }
+]

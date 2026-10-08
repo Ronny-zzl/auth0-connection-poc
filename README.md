@@ -12,6 +12,5 @@ Auth0 で個人／法人を別々の Database Connection に分け、`/authorize
 
 - [index.html](index.html)：検証ページ本体。テストケースごとのボタン、結果表示、Markdown での結果コピー
 - [SETUP.md](SETUP.md)：Auth0 テナントの設定手順（Connection、Post-Login Action、テストユーザー）
-- [tools/gen-users.mjs](tools/gen-users.mjs)：テストユーザーの Import 用 JSON を生成。出力先の `private/` は git 管理外
-
-テスト用のメールアドレスとパスワードは公開しない。`private/accounts.md` をチーム内で別途共有する。
+- [accounts.json](accounts.json)：テストアカウント一覧。検証ページに表示される（使い捨てテナント専用なので公開している）
+- [tools/gen-users.mjs](tools/gen-users.mjs)：テストユーザーを生成。Import 用 JSON は `private/`（git 管理外）、平文の一覧は `accounts.json` に出す

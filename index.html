@@ -56,7 +56,13 @@
 <main>
   <h1>Auth0 Connection PoC</h1>
   <p class="muted">個人／法人を別々の Database Connection に分け、<code>/authorize</code> の <code>connection</code> で切り替える方式の検証ページ。使い捨て。</p>
-  <p class="muted">テナント <code id="cfg-domain"></code> ／ アカウントとパスワードは別途共有の <code>accounts.md</code> を参照（このページは公開なので載せていない）。</p>
+  <p class="muted">テナント <code id="cfg-domain"></code></p>
+
+  <h2>テストアカウント</h2>
+  <div class="card">
+    <p class="muted">同じメールアドレスが personal-database と corporate-database の両方にある。パスワードはクリックでコピー。</p>
+    <table id="accounts"><tr><td class="muted">読み込み中…</td></tr></table>
+  </div>
 
   <div class="bar" style="margin-top:12px">
     <button id="btn-logout">Auth0 からログアウト（SSO セッション破棄）</button>
@@ -281,6 +287,20 @@ function renderLast(entry) {
     </div>`;
 }
 
+let accounts = [];
+async function loadAccounts() {
+  const el = document.getElementById('accounts');
+  try {
+    accounts = await (await fetch('accounts.json', { cache: 'no-store' })).json();
+  } catch {
+    el.innerHTML = '<tr><td class="muted">accounts.json を読み込めなかった</td></tr>';
+    return;
+  }
+  const pw = (v) => `<code data-copy="${esc(v)}" style="cursor:pointer" title="クリックでコピー">${esc(v)}</code>`;
+  el.innerHTML = `<tr><th style="width:auto">メール</th><th style="width:auto">personal</th><th style="width:auto">corporate</th><th style="width:auto">用途</th></tr>`
+    + accounts.map((a) => `<tr><td>${esc(a.email)}</td><td>${pw(a.personal)}</td><td>${pw(a.corporate)}</td><td>${esc(a.purpose)}</td></tr>`).join('');
+}
+
 // ---- Auth0 ----
 let client;
 async function login(params, appState) {
@@ -340,6 +360,11 @@ function exportMarkdown() {
 
 // ---- イベント ----
 document.addEventListener('click', async (ev) => {
+  const copy = ev.target.closest('[data-copy]');
+  if (copy) {
+    try { await navigator.clipboard.writeText(copy.dataset.copy); copy.style.outline = '2px solid var(--ok)'; setTimeout(() => (copy.style.outline = ''), 800); } catch {}
+    return;
+  }
   const t = ev.target.closest('button');
   if (!t) return;
   if (t.dataset.launch) {
@@ -396,6 +421,9 @@ document.addEventListener('input', (ev) => {
     authorizationParams: { redirect_uri: RETURN_TO, scope: 'openid profile email' },
   });
   await handleCallback();
+  await loadAccounts();
+  // ケース 6 のリセット先は jiro（未入力のときだけ補う）
+  if (!store.get('resetEmail', '')) store.set('resetEmail', accounts.find((a) => a.tag === 'jiro')?.email || '');
   renderCases();
   renderLast(store.get('last', null));
 })();
