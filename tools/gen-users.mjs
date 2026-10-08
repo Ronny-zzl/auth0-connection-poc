@@ -15,7 +15,7 @@ if (!base || !/^[^@+\s]+@[^@\s]+$/.test(base)) {
 const [local, domain] = base.split('@');
 const alias = (tag) => `${local}+${tag}@${domain}`;
 
-// 英大文字・小文字・数字を必ず含める（Auth0 の "Good" ポリシーを満たす）
+// 英大文字・小文字・数字を含め 15 文字以上にする（テナントのパスワードポリシー）
 const genPassword = (label) => `${label}-${randomBytes(6).toString('base64url')}-9a`;
 
 // Auth0 は $2a$/$2b$ を受け付ける。htpasswd の $2y$ はアルゴリズムが同じなので接頭辞だけ置換する。

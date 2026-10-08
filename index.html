@@ -149,7 +149,7 @@ const CASES = [
     steps: ['「個人」タブを選んだ想定で、URL の connection だけ corporate に差し替えて送る', 'taro / corporate 用パスワードでログイン', 'ログインは成功し、「選択モードとトークンの connection が不一致」と出れば想定どおり'],
     launches: [{ use: 'taro.corporate', label: '個人モードで connection=corporate', mode: 'personal', params: { connection: C, prompt: 'login' }, expect: { kind: 'mismatch' } }] },
   { id: '6', title: 'パスワードリセットは connection ごと', goal: '片方の DB のリセットがもう片方に影響しない。',
-    steps: ['jiro のメールアドレスを入れて「個人側にリセットメール」を押す（ケース J の後に実施）', '届いたメールのリンクで個人側のパスワードを新しくする（新パスワードは自分で決めて覚えておく）',
+    steps: ['jiro のメールアドレスを入れて「個人側にリセットメール」を押す（ケース J の後に実施）', '届いたメールのリンクで個人側のパスワードを新しくする（15 文字以上。自分で決めて覚えておく）',
       '6-a：法人に「旧」共通パスワードでログイン → 成功すれば OK', '6-b：個人に「新」パスワードでログイン → 成功すれば OK',
       '（任意）ログイン画面の「パスワードを忘れた」リンクからも、指定 connection にリセットが飛ぶか確認'],
     reset: true,
@@ -308,7 +308,7 @@ async function loadAccounts() {
 }
 
 const pwCode = (v) => `<code data-copy="${esc(v)}" style="cursor:pointer" title="クリックでコピー">${esc(v)}</code>`;
-const SIGNUP_PASSWORD = 'Signup-Test-1a';
+const SIGNUP_PASSWORD = 'Signup-Test-Pass-2026a'; // テナントのパスワードポリシーは 15 文字以上
 function cred(use) {
   const [tag, kind] = use.split('.');
   if (kind === 'signup') {
