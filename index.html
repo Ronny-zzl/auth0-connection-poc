@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auth0 Connection PoC</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --fg: #1d2330; --muted: #5d6677; --line: #dde1e8;
+    --accent: #2f5bd3; --accent-fg: #fff; --ok: #1f7a3d; --ok-bg: #e3f4e8;
+    --ng: #b42318; --ng-bg: #fde8e6; --warn: #8a5a00; --warn-bg: #fff3d6; --code: #eef1f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --card: #1b2029; --fg: #e6e9ef; --muted: #9aa3b4; --line: #2c3340;
+      --accent: #6d8ff0; --accent-fg: #0b0f18; --ok: #6fd28f; --ok-bg: #173323;
+      --ng: #ff8a80; --ng-bg: #3a1c1a; --warn: #f2c063; --warn-bg: #3a2e14; --code: #232a36;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 32px 0 12px; }
+  h3 { font-size: 15px; margin: 0; }
+  p { margin: 6px 0; }
+  .muted { color: var(--muted); font-size: 13px; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; background: var(--code); border-radius: 4px; }
+  code { padding: 1px 4px; }
+  pre { padding: 10px 12px; overflow-x: auto; margin: 6px 0; white-space: pre-wrap; word-break: break-all; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 10px 0; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button { font: inherit; font-size: 13.5px; border: 1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  button:hover { filter: brightness(0.96); }
+  input, select, textarea { font: inherit; font-size: 13.5px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+  textarea { width: 100%; min-height: 48px; resize: vertical; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; border-bottom: 1px solid var(--line); padding: 5px 8px; vertical-align: top; word-break: break-all; }
+  th { color: var(--muted); font-weight: 600; width: 32%; }
+  .chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+  .chip.ok { color: var(--ok); background: var(--ok-bg); }
+  .chip.ng { color: var(--ng); background: var(--ng-bg); }
+  .chip.warn { color: var(--warn); background: var(--warn-bg); }
+  .chip.none { color: var(--muted); background: var(--code); }
+  .case-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .case-id { font-weight: 700; color: var(--accent); }
+  ol { margin: 6px 0; padding-left: 22px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .result { border-left: 4px solid var(--accent); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+  .grow { flex: 1 1 200px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Auth0 Connection PoC</h1>
+  <p class="muted">個人／法人を別々の Database Connection に分け、<code>/authorize</code> の <code>connection</code> で切り替える方式の検証ページ。使い捨て。</p>
+  <p class="muted">テナント <code id="cfg-domain"></code> ／ アカウントとパスワードは別途共有の <code>accounts.md</code> を参照（このページは公開なので載せていない）。</p>
+
+  <div class="bar" style="margin-top:12px">
+    <button id="btn-logout">Auth0 からログアウト（SSO セッション破棄）</button>
+    <button id="btn-export">結果を Markdown でコピー</button>
+    <button id="btn-clear">このブラウザの結果を消去</button>
+  </div>
+
+  <div id="last"></div>
+
+  <h2>テストケース</h2>
+  <div id="cases"></div>
+
+  <h2>自由入力</h2>
+  <div class="card">
+    <p class="muted">任意のパラメータで <code>/authorize</code> を呼ぶ。結果は「最新の結果」に出る。</p>
+    <div class="row">
+      <label>connection
+        <select id="free-conn">
+          <option value="personal-database">personal-database</option>
+          <option value="corporate-database">corporate-database</option>
+          <option value="">（付けない）</option>
+        </select>
+      </label>
+      <label>prompt
+        <select id="free-prompt">
+          <option value="login">login</option>
+          <option value="">（付けない）</option>
+          <option value="none">none</option>
+        </select>
+      </label>
+      <label>screen_hint
+        <select id="free-hint">
+          <option value="">（付けない）</option>
+          <option value="signup">signup</option>
+        </select>
+      </label>
+      <label class="grow">login_hint <input id="free-login-hint" style="width:100%" placeholder="（任意）"></label>
+      <button class="primary" id="free-go">ログイン</button>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@auth0/auth0-spa-js@2.28.2/dist/auth0-spa-js.production.js"
+        integrity="sha384-/XCBys+R3wtzrnDBH2hl4sOmC8dr/B79K0Wdw7O+ep2OlPlOm0wYtFUzbg8uipOZ"
+        crossorigin="anonymous"></script>
+<script>
+const CONFIG = {
+  domain: 'dev-zwom4aj7m0buuspq.us.auth0.com',
+  clientId: 'IvJKf2tCFmDRrtL8kWwq7dshw09smn5U',
+};
+// Post-Login Action が ID Token に入れるクレームの名前空間（SETUP.md 参照）
+const NS = 'https://ronny-zzl.github.io/auth0-connection-poc/';
+const P = 'personal-database';
+const C = 'corporate-database';
+const MODE_CONN = { personal: P, corporate: C };
+const RETURN_TO = location.origin + location.pathname;
+
+// expect.kind: success = 指定 connection で成功すべき / mismatch = 成功するがアプリ側で弾くべき
+//              fail = Auth0 画面でエラーになるべき（戻ってこない） / observe = 挙動を記録する
+const CASES = [
+  { id: '1', title: '個人ログイン', goal: 'personal-database で認証できる。',
+    steps: ['taro / personal 用パスワードでログイン', '表示された sub を控える（ケース 2 と比較）'],
+    launches: [{ label: '個人でログイン', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'success', connection: P } }] },
+  { id: '2', title: '法人ログイン', goal: 'corporate-database で認証でき、同じメールでも個人とは別ユーザー（sub が違う）。',
+    steps: ['taro / corporate 用パスワードでログイン'],
+    launches: [{ label: '法人でログイン', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'success', connection: C, subDiffersFrom: '1' } }] },
+  { id: '3', title: '法人に個人パスワード', goal: '資格情報が connection ごとに分離されている。',
+    steps: ['taro / personal 用パスワードを入力', 'Auth0 の画面で「パスワードが違う」系のエラーになれば OK（このページには戻ってこない）', '下で判定を手動で記録'],
+    launches: [{ label: '法人でログイン', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'fail' } }] },
+  { id: 'J', title: '同じパスワードでも別アカウント', goal: '両方の DB に同じメール・同じパスワードがあっても、指定した connection のユーザーになる。',
+    steps: ['jiro / 共通パスワードで J-a、J-b の順にログイン', 'J-b の sub が J-a と違えば OK'],
+    launches: [
+      { label: 'J-a 個人', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'success', connection: P } },
+      { label: 'J-b 法人', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'success', connection: C, subDiffersFrom: 'J#0' } }] },
+  { id: '4', title: 'connection を付けない', goal: 'どの DB に照合されるか（ドキュメント上は「最初の DB」）。何が「最初」かを特定する。',
+    steps: ['4-a：taro / personal 用パスワードでログイン', '4-b：taro / corporate 用パスワードでログイン', '片方だけ成功するはず。成功した側の connection を記録',
+      'ログイン画面に connection の選択肢が出るかも記録'],
+    launches: [
+      { label: '4-a（個人パスワード）', params: { prompt: 'login' }, expect: { kind: 'observe' } },
+      { label: '4-b（法人パスワード）', params: { prompt: 'login' }, expect: { kind: 'observe' } }] },
+  { id: '5', title: 'connection の改ざん', goal: 'connection はクライアントが自由に変えられる＝安全境界ではない。アプリ側でトークンの connection を検査する必要があることの確認。',
+    steps: ['「個人」タブを選んだ想定で、URL の connection だけ corporate に差し替えて送る', 'taro / corporate 用パスワードでログイン', 'ログインは成功し、「選択モードとトークンの connection が不一致」と出れば想定どおり'],
+    launches: [{ label: '個人モードで connection=corporate', mode: 'personal', params: { connection: C, prompt: 'login' }, expect: { kind: 'mismatch' } }] },
+  { id: '6', title: 'パスワードリセットは connection ごと', goal: '片方の DB のリセットがもう片方に影響しない。',
+    steps: ['jiro のメールアドレスを入れて「個人側にリセットメール」を押す（ケース J の後に実施）', '届いたメールのリンクで個人側のパスワードを新しくする',
+      '6-a：法人に「旧」共通パスワードでログイン → 成功すれば OK', '6-b：個人に「新」パスワードでログイン → 成功すれば OK',
+      '（任意）ログイン画面の「パスワードを忘れた」リンクからも、指定 connection にリセットが飛ぶか確認'],
+    reset: true,
+    launches: [
+      { label: '6-a 法人（旧パスワード）', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'success', connection: C } },
+      { label: '6-b 個人（新パスワード）', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'success', connection: P } }] },
+  { id: '7', title: 'SSO セッションの扱い（重要）', goal: '個人でログイン済みのセッションが残っているとき、prompt=login なしで法人を要求すると何が起きるか。個人ユーザーがそのまま返ってきたら危険。',
+    steps: ['上の「ログアウト」を押す', 'ケース 1 で個人ログイン', '7-a を押す（prompt なし）。パスワード画面が出たか、すぐ戻ってきたかを記録',
+      '7-b：もう一度ケース 1 → 7-b（個人・prompt なし）。同じ connection なら SSO で即戻ってくるはず'],
+    launches: [
+      { label: '7-a 法人（prompt なし）', mode: 'corporate', params: { connection: C }, expect: { kind: 'success', connection: C, warnIfSso: true } },
+      { label: '7-b 個人（prompt なし）', mode: 'personal', params: { connection: P }, expect: { kind: 'observe' } }] },
+  { id: '8', title: 'サインアップ先', goal: 'セルフサインアップがどの connection に作られるか。法人側はサインアップを閉じるべきかの判断材料。',
+    steps: ['未使用のメール（例：自分のアドレス + signup1）で登録', '8-a は corporate-database に作られれば OK', '8-b は作られた connection を記録',
+      'Dashboard の Users でも作成先を確認。終わったらそのユーザーは削除'],
+    launches: [
+      { label: '8-a 法人を指定して登録', mode: 'corporate', params: { connection: C, screen_hint: 'signup', prompt: 'login' }, expect: { kind: 'success', connection: C } },
+      { label: '8-b connection なしで登録', params: { screen_hint: 'signup', prompt: 'login' }, expect: { kind: 'observe' } }] },
+  { id: '9', title: 'ブルートフォース保護の単位', goal: '同じメールの片方の DB でロックされたとき、もう片方もロックされるか。',
+    steps: ['lock アカウントを使う（他のケースでは使わない）', '9-a：法人で、わざと間違ったパスワードを 10 回以上入れてロックさせる', '9-b：個人で lock / personal 用の正しいパスワードを入れる',
+      '9-b が成功 → connection ごと、ブロック → メール単位で共有。結果を記録', '解除は Dashboard の該当ユーザー → Unblock、または届いたメールから'],
+    launches: [
+      { label: '9-a 法人（ロックさせる）', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'fail' } },
+      { label: '9-b 個人（正しいパスワード）', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'observe' } }] },
+];
+
+// ---- 保存（このブラウザだけ。共有は Markdown コピーで） ----
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('poc:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('poc:' + k, JSON.stringify(v)); } catch {} },
+};
+const results = () => store.get('results', {});
+const saveResult = (key, patch) => { const r = results(); r[key] = { ...r[key], ...patch }; store.set('results', r); };
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const chip = (v) => {
+  const cls = { OK: 'ok', NG: 'ng', '要確認': 'warn' }[v] || 'none';
+  return `<span class="chip ${cls}">${esc(v || '未実施')}</span>`;
+};
+
+// ---- 判定 ----
+function judge(launch, claims, error) {
+  const e = launch.expect;
+  const conn = claims?.[NS + 'connection'];
+  const notes = [];
+  if (error) {
+    if (e.kind === 'fail') return { verdict: 'OK', notes: ['想定どおりエラー: ' + error] };
+    if (e.kind === 'observe') return { verdict: '要確認', notes: ['エラー: ' + error] };
+    return { verdict: 'NG', notes: ['エラー: ' + error] };
+  }
+  if (claims && conn === undefined) notes.push('connection クレームがない。Post-Login Action を確認（SETUP.md）');
+  // SSO セッションで通った場合、auth_time は前回パスワードを入れた時刻のまま
+  const age = claims?.auth_time ? Math.round(Date.now() / 1000 - claims.auth_time) : null;
+  const fresh = age !== null && age < 60;
+  if (age !== null && !fresh) notes.push(`auth_time が ${age} 秒前 → 今回はパスワード入力なし（SSO セッションで通過）`);
+  switch (e.kind) {
+    case 'fail':
+      return { verdict: 'NG', notes: [...notes, 'エラーになるはずが成功した（connection: ' + conn + '）'] };
+    case 'mismatch': {
+      const want = MODE_CONN[launch.mode];
+      if (conn && conn !== want) return { verdict: 'OK', notes: [...notes, `ログインは成功、選択モード（${want}）とトークンの connection（${conn}）が不一致 → アプリ側で拒否が必要`] };
+      return { verdict: '要確認', notes: [...notes, 'connection が不一致にならなかった: ' + conn] };
+    }
+    case 'observe':
+      return { verdict: '要確認', notes: [...notes, '照合された connection: ' + conn] };
+    case 'success': {
+      let verdict = conn === e.connection ? 'OK' : 'NG';
+      if (conn !== e.connection) notes.push(`connection が ${e.connection} ではなく ${conn}`);
+      if (e.subDiffersFrom) {
+        const ref = results()[e.subDiffersFrom]?.claims?.sub;
+        if (!ref) { notes.push(`比較対象（${e.subDiffersFrom}）の結果がまだない`); if (verdict === 'OK') verdict = '要確認'; }
+        else if (ref === claims.sub) { verdict = 'NG'; notes.push('sub が比較対象と同じ'); }
+        else notes.push(`sub が ${e.subDiffersFrom} と異なる（${ref}）`);
+      }
+      if (e.warnIfSso && conn !== e.connection) notes.push('⚠ 法人を要求したのに別 connection のユーザーが返ってきた');
+      return { verdict, notes };
+    }
+  }
+}
+
+// ---- 描画 ----
+function renderCases() {
+  const r = results();
+  document.getElementById('cases').innerHTML = CASES.map((c) => {
+    const rows = c.launches.map((l, i) => {
+      const key = c.launches.length > 1 ? `${c.id}#${i}` : c.id;
+      const res = r[key] || {};
+      return `<div class="row">
+        <button class="primary" data-launch="${c.id}:${i}">${esc(l.label)}</button>
+        <code>${esc(Object.entries(l.params).map(([k, v]) => `${k}=${v}`).join(' ') || '（追加パラメータなし）')}</code>
+        ${chip(res.verdict)}
+        <select data-verdict="${key}" title="手動で判定を上書き">
+          ${['', 'OK', 'NG', '要確認'].map((v) => `<option value="${v}" ${res.verdict === v ? 'selected' : ''}>${v || '判定…'}</option>`).join('')}
+        </select>
+      </div>
+      ${res.notes?.length ? `<p class="muted">${res.notes.map(esc).join('<br>')}</p>` : ''}`;
+    }).join('');
+    const reset = c.reset ? `<div class="row">
+        <input id="reset-email" class="grow" placeholder="jiro のメールアドレス" value="${esc(store.get('resetEmail', ''))}">
+        <button data-reset="${P}">個人側にリセットメール</button>
+        <button data-reset="${C}">法人側にリセットメール</button>
+      </div><p class="muted" id="reset-msg"></p>` : '';
+    return `<div class="card">
+      <div class="case-head"><span class="case-id">ケース ${esc(c.id)}</span><h3>${esc(c.title)}</h3></div>
+      <p>${esc(c.goal)}</p>
+      <ol>${c.steps.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>
+      ${reset}${rows}
+      <textarea data-memo="${c.id}" placeholder="メモ（気づいたこと、画面の様子など）">${esc(r['memo:' + c.id]?.text || '')}</textarea>
+    </div>`;
+  }).join('');
+}
+
+function renderLast(entry) {
+  const el = document.getElementById('last');
+  if (!entry) { el.innerHTML = ''; return; }
+  const c = entry.claims || {};
+  const url = entry.authorizeUrl ? new URL(entry.authorizeUrl) : null;
+  const params = url ? [...url.searchParams].filter(([k]) => !['code_challenge', 'state', 'nonce', 'auth0Client'].includes(k)) : [];
+  el.innerHTML = `<h2>最新の結果</h2>
+    <div class="card result">
+      <div class="case-head"><span class="case-id">${esc(entry.title)}</span>${chip(entry.verdict)}<span class="muted">${esc(entry.at)}</span></div>
+      ${entry.notes?.length ? `<p>${entry.notes.map(esc).join('<br>')}</p>` : ''}
+      <table>
+        ${entry.error ? `<tr><th>error</th><td>${esc(entry.error)}</td></tr>` : ''}
+        <tr><th>connection（Action）</th><td><b>${esc(c[NS + 'connection'] ?? '—')}</b></td></tr>
+        <tr><th>sub</th><td>${esc(c.sub ?? '—')}</td></tr>
+        <tr><th>email</th><td>${esc(c.email ?? '—')}</td></tr>
+        <tr><th>corporateNumbers</th><td>${esc(JSON.stringify(c[NS + 'corporateNumbers'] ?? null))}</td></tr>
+        <tr><th>auth_time</th><td>${c.auth_time ? esc(new Date(c.auth_time * 1000).toLocaleString()) : '—'}</td></tr>
+        <tr><th>認証メソッド（Action）</th><td>${esc(JSON.stringify(c[NS + 'authMethods'] ?? null))}</td></tr>
+      </table>
+      <details><summary>送った authorize パラメータ</summary>
+        <table>${params.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</table>
+        <pre>${esc(entry.authorizeUrl || '')}</pre>
+      </details>
+      <details><summary>ID Token のクレーム（生）</summary><pre>${esc(JSON.stringify(c, null, 2))}</pre></details>
+    </div>`;
+}
+
+// ---- Auth0 ----
+let client;
+async function login(params, appState) {
+  await client.loginWithRedirect({
+    authorizationParams: params,
+    appState,
+    openUrl(url) {
+      sessionStorage.setItem('poc:authorizeUrl', url);
+      window.location.assign(url);
+    },
+  });
+}
+
+async function handleCallback() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('state') || !(q.has('code') || q.has('error'))) return;
+  const authorizeUrl = sessionStorage.getItem('poc:authorizeUrl');
+  let appState = {}, claims = null, error = null;
+  try {
+    ({ appState = {} } = await client.handleRedirectCallback());
+    claims = await client.getIdTokenClaims();
+  } catch (e) {
+    error = [e.error, e.error_description || e.message].filter(Boolean).join(': ');
+    appState = e.appState || store.get('pending', {});
+  }
+  history.replaceState(null, '', RETURN_TO);
+
+  const at = new Date().toLocaleString();
+  let entry;
+  if (appState.caseId) {
+    const c = CASES.find((x) => x.id === appState.caseId);
+    const launch = c.launches[appState.idx];
+    const key = c.launches.length > 1 ? `${c.id}#${appState.idx}` : c.id;
+    const { verdict, notes } = judge(launch, claims, error);
+    entry = { title: `ケース ${c.id}：${launch.label}`, verdict, notes, claims, error, authorizeUrl, at };
+    saveResult(key, entry);
+  } else {
+    entry = { title: '自由入力', verdict: error ? 'NG' : '要確認', notes: [], claims, error, authorizeUrl, at };
+  }
+  store.set('last', entry);
+}
+
+function exportMarkdown() {
+  const r = results();
+  const lines = ['| ケース | 実行 | 判定 | connection | メモ |', '|---|---|---|---|---|'];
+  for (const c of CASES) {
+    c.launches.forEach((l, i) => {
+      const key = c.launches.length > 1 ? `${c.id}#${i}` : c.id;
+      const res = r[key] || {};
+      const memo = i === 0 ? (r['memo:' + c.id]?.text || '') : '';
+      const cell = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+      lines.push(`| ${c.id} ${cell(c.title)} | ${cell(l.label)} | ${res.verdict || '未実施'} | ${cell(res.claims?.[NS + 'connection'] ?? '')} | ${cell([...(res.notes || []), memo].filter(Boolean).join(' / '))} |`);
+    });
+  }
+  return lines.join('\n');
+}
+
+// ---- イベント ----
+document.addEventListener('click', async (ev) => {
+  const t = ev.target.closest('button');
+  if (!t) return;
+  if (t.dataset.launch) {
+    const [id, idx] = t.dataset.launch.split(':');
+    const launch = CASES.find((c) => c.id === id).launches[+idx];
+    const appState = { caseId: id, idx: +idx };
+    store.set('pending', appState);
+    await login(launch.params, appState);
+  } else if (t.dataset.reset) {
+    const email = document.getElementById('reset-email').value.trim();
+    const msg = document.getElementById('reset-msg');
+    store.set('resetEmail', email);
+    if (!email) { msg.textContent = 'メールアドレスを入れてください'; return; }
+    const res = await fetch(`https://${CONFIG.domain}/dbconnections/change_password`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ client_id: CONFIG.clientId, email, connection: t.dataset.reset }),
+    });
+    msg.textContent = `${t.dataset.reset}: ${res.status} ${await res.text()}`;
+  } else if (t.id === 'free-go') {
+    const params = {};
+    const v = (id) => document.getElementById(id).value.trim();
+    if (v('free-conn')) params.connection = v('free-conn');
+    if (v('free-prompt')) params.prompt = v('free-prompt');
+    if (v('free-hint')) params.screen_hint = v('free-hint');
+    if (v('free-login-hint')) params.login_hint = v('free-login-hint');
+    store.set('pending', {});
+    await login(params, {});
+  } else if (t.id === 'btn-logout') {
+    await client.logout({ logoutParams: { returnTo: RETURN_TO } });
+  } else if (t.id === 'btn-export') {
+    const md = exportMarkdown();
+    try { await navigator.clipboard.writeText(md); t.textContent = 'コピーしました'; }
+    catch { prompt('コピーしてください', md); }
+    setTimeout(() => (t.textContent = '結果を Markdown でコピー'), 1500);
+  } else if (t.id === 'btn-clear') {
+    if (confirm('このブラウザに保存した結果とメモを消去しますか？')) { store.set('results', {}); store.set('last', null); renderCases(); renderLast(null); }
+  }
+});
+document.addEventListener('change', (ev) => {
+  const t = ev.target;
+  if (t.dataset.verdict !== undefined) { saveResult(t.dataset.verdict, { verdict: t.value }); renderCases(); }
+});
+document.addEventListener('input', (ev) => {
+  const t = ev.target;
+  if (t.dataset.memo !== undefined) saveResult('memo:' + t.dataset.memo, { text: t.value });
+});
+
+(async () => {
+  document.getElementById('cfg-domain').textContent = CONFIG.domain;
+  // トークンはメモリにだけ置く。ページを開き直すと Auth0 の SSO セッション以外は残らない。
+  client = await auth0.createAuth0Client({
+    domain: CONFIG.domain,
+    clientId: CONFIG.clientId,
+    authorizationParams: { redirect_uri: RETURN_TO, scope: 'openid profile email' },
+  });
+  await handleCallback();
+  renderCases();
+  renderLast(store.get('last', null));
+})();
+</script>
+</body>
+</html>
