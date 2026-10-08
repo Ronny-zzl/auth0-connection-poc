@@ -73,6 +73,7 @@
   <div id="last"></div>
 
   <h2>テストケース</h2>
+  <p class="muted">ボタンを押すと、使うパスワードがクリップボードにコピーされ、Auth0 のログイン画面がポップアップで開く（メールは入力済み）。成功するとポップアップは自動で閉じる。失敗するケースは、エラーを確認したらポップアップを閉じて判定を手動で選ぶ。ポップアップがブロックされたらブラウザで許可する。</p>
   <div id="cases"></div>
 
   <h2>自由入力</h2>
@@ -121,57 +122,58 @@ const MODE_CONN = { personal: P, corporate: C };
 const RETURN_TO = location.origin + location.pathname;
 
 // expect.kind: success = 指定 connection で成功すべき / mismatch = 成功するがアプリ側で弾くべき
-//              fail = Auth0 画面でエラーになるべき（戻ってこない） / observe = 挙動を記録する
+//              fail = Auth0 画面でエラーになるべき（ポップアップを閉じて手動判定） / observe = 挙動を記録する
+// use: 'アカウント.パスワード種別'（accounts.json の tag と personal / corporate、new = 自分で決めた新パスワード、wrong = わざと間違える、signup = 新規登録）
 const CASES = [
   { id: '1', title: '個人ログイン', goal: 'personal-database で認証できる。',
     steps: ['taro / personal 用パスワードでログイン', '表示された sub を控える（ケース 2 と比較）'],
-    launches: [{ label: '個人でログイン', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'success', connection: P } }] },
+    launches: [{ use: 'taro.personal', label: '個人でログイン', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'success', connection: P } }] },
   { id: '2', title: '法人ログイン', goal: 'corporate-database で認証でき、同じメールでも個人とは別ユーザー（sub が違う）。',
     steps: ['taro / corporate 用パスワードでログイン'],
-    launches: [{ label: '法人でログイン', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'success', connection: C, subDiffersFrom: '1' } }] },
+    launches: [{ use: 'taro.corporate', label: '法人でログイン', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'success', connection: C, subDiffersFrom: '1' } }] },
   { id: '3', title: '法人に個人パスワード', goal: '資格情報が connection ごとに分離されている。',
-    steps: ['taro / personal 用パスワードを入力', 'Auth0 の画面で「パスワードが違う」系のエラーになれば OK（このページには戻ってこない）', '下で判定を手動で記録'],
-    launches: [{ label: '法人でログイン', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'fail' } }] },
+    steps: ['taro / personal 用パスワードを入力', 'Auth0 の画面で「パスワードが違う」系のエラーになれば OK', 'ポップアップを閉じて、判定を手動で OK にする'],
+    launches: [{ use: 'taro.personal', label: '法人でログイン', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'fail' } }] },
   { id: 'J', title: '同じパスワードでも別アカウント', goal: '両方の DB に同じメール・同じパスワードがあっても、指定した connection のユーザーになる。',
     steps: ['jiro / 共通パスワードで J-a、J-b の順にログイン', 'J-b の sub が J-a と違えば OK'],
     launches: [
-      { label: 'J-a 個人', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'success', connection: P } },
-      { label: 'J-b 法人', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'success', connection: C, subDiffersFrom: 'J#0' } }] },
+      { use: 'jiro.personal', label: 'J-a 個人', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'success', connection: P } },
+      { use: 'jiro.corporate', label: 'J-b 法人', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'success', connection: C, subDiffersFrom: 'J#0' } }] },
   { id: '4', title: 'connection を付けない', goal: 'どの DB に照合されるか（ドキュメント上は「最初の DB」）。何が「最初」かを特定する。',
     steps: ['4-a：taro / personal 用パスワードでログイン', '4-b：taro / corporate 用パスワードでログイン', '片方だけ成功するはず。成功した側の connection を記録',
       'ログイン画面に connection の選択肢が出るかも記録'],
     launches: [
-      { label: '4-a（個人パスワード）', params: { prompt: 'login' }, expect: { kind: 'observe' } },
-      { label: '4-b（法人パスワード）', params: { prompt: 'login' }, expect: { kind: 'observe' } }] },
+      { use: 'taro.personal', label: '4-a（個人パスワード）', params: { prompt: 'login' }, expect: { kind: 'observe' } },
+      { use: 'taro.corporate', label: '4-b（法人パスワード）', params: { prompt: 'login' }, expect: { kind: 'observe' } }] },
   { id: '5', title: 'connection の改ざん', goal: 'connection はクライアントが自由に変えられる＝安全境界ではない。アプリ側でトークンの connection を検査する必要があることの確認。',
     steps: ['「個人」タブを選んだ想定で、URL の connection だけ corporate に差し替えて送る', 'taro / corporate 用パスワードでログイン', 'ログインは成功し、「選択モードとトークンの connection が不一致」と出れば想定どおり'],
-    launches: [{ label: '個人モードで connection=corporate', mode: 'personal', params: { connection: C, prompt: 'login' }, expect: { kind: 'mismatch' } }] },
+    launches: [{ use: 'taro.corporate', label: '個人モードで connection=corporate', mode: 'personal', params: { connection: C, prompt: 'login' }, expect: { kind: 'mismatch' } }] },
   { id: '6', title: 'パスワードリセットは connection ごと', goal: '片方の DB のリセットがもう片方に影響しない。',
-    steps: ['jiro のメールアドレスを入れて「個人側にリセットメール」を押す（ケース J の後に実施）', '届いたメールのリンクで個人側のパスワードを新しくする',
+    steps: ['jiro のメールアドレスを入れて「個人側にリセットメール」を押す（ケース J の後に実施）', '届いたメールのリンクで個人側のパスワードを新しくする（新パスワードは自分で決めて覚えておく）',
       '6-a：法人に「旧」共通パスワードでログイン → 成功すれば OK', '6-b：個人に「新」パスワードでログイン → 成功すれば OK',
       '（任意）ログイン画面の「パスワードを忘れた」リンクからも、指定 connection にリセットが飛ぶか確認'],
     reset: true,
     launches: [
-      { label: '6-a 法人（旧パスワード）', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'success', connection: C } },
-      { label: '6-b 個人（新パスワード）', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'success', connection: P } }] },
+      { use: 'jiro.corporate', label: '6-a 法人（旧パスワード）', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'success', connection: C } },
+      { use: 'jiro.new', label: '6-b 個人（新パスワード）', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'success', connection: P } }] },
   { id: '7', title: 'SSO セッションの扱い（重要）', goal: '個人でログイン済みのセッションが残っているとき、prompt=login なしで法人を要求すると何が起きるか。個人ユーザーがそのまま返ってきたら危険。',
-    steps: ['上の「ログアウト」を押す', 'ケース 1 で個人ログイン', '7-a を押す（prompt なし）。パスワード画面が出たか、すぐ戻ってきたかを記録',
-      '7-b：もう一度ケース 1 → 7-b（個人・prompt なし）。同じ connection なら SSO で即戻ってくるはず'],
+    steps: ['上の「ログアウト」を押す', 'ケース 1 で個人ログイン', '7-a を押す（prompt なし）。パスワード画面が出たか、ポップアップがすぐ閉じたかを記録',
+      '7-b：もう一度ケース 1 → 7-b（個人・prompt なし）。同じ connection なら SSO でポップアップがすぐ閉じるはず'],
     launches: [
-      { label: '7-a 法人（prompt なし）', mode: 'corporate', params: { connection: C }, expect: { kind: 'success', connection: C, warnIfSso: true } },
-      { label: '7-b 個人（prompt なし）', mode: 'personal', params: { connection: P }, expect: { kind: 'observe' } }] },
+      { use: 'taro.corporate', label: '7-a 法人（prompt なし）', mode: 'corporate', params: { connection: C }, expect: { kind: 'success', connection: C, warnIfSso: true } },
+      { use: 'taro.personal', label: '7-b 個人（prompt なし）', mode: 'personal', params: { connection: P }, expect: { kind: 'observe' } }] },
   { id: '8', title: 'サインアップ先', goal: 'セルフサインアップがどの connection に作られるか。法人側はサインアップを閉じるべきかの判断材料。',
-    steps: ['未使用のメール（例：自分のアドレス + signup1）で登録', '8-a は corporate-database に作られれば OK', '8-b は作られた connection を記録',
+    steps: ['ボタン横に出ている未使用のメールとパスワードで登録', '8-a は corporate-database に作られれば OK', '8-b は作られた connection を記録',
       'Dashboard の Users でも作成先を確認。終わったらそのユーザーは削除'],
     launches: [
-      { label: '8-a 法人を指定して登録', mode: 'corporate', params: { connection: C, screen_hint: 'signup', prompt: 'login' }, expect: { kind: 'success', connection: C } },
-      { label: '8-b connection なしで登録', params: { screen_hint: 'signup', prompt: 'login' }, expect: { kind: 'observe' } }] },
+      { use: 'signup1.signup', label: '8-a 法人を指定して登録', mode: 'corporate', params: { connection: C, screen_hint: 'signup', prompt: 'login' }, expect: { kind: 'success', connection: C } },
+      { use: 'signup2.signup', label: '8-b connection なしで登録', params: { screen_hint: 'signup', prompt: 'login' }, expect: { kind: 'observe' } }] },
   { id: '9', title: 'ブルートフォース保護の単位', goal: '同じメールの片方の DB でロックされたとき、もう片方もロックされるか。',
-    steps: ['lock アカウントを使う（他のケースでは使わない）', '9-a：法人で、わざと間違ったパスワードを 10 回以上入れてロックさせる', '9-b：個人で lock / personal 用の正しいパスワードを入れる',
+    steps: ['lock アカウントを使う（他のケースでは使わない）', '9-a：法人で、わざと間違ったパスワードを 10 回以上入れてロックさせる（終わったらポップアップを閉じる）', '9-b：個人で lock / personal 用の正しいパスワードを入れる',
       '9-b が成功 → connection ごと、ブロック → メール単位で共有。結果を記録', '解除は Dashboard の該当ユーザー → Unblock、または届いたメールから'],
     launches: [
-      { label: '9-a 法人（ロックさせる）', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'fail' } },
-      { label: '9-b 個人（正しいパスワード）', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'observe' } }] },
+      { use: 'lock.wrong', label: '9-a 法人（ロックさせる）', mode: 'corporate', params: { connection: C, prompt: 'login' }, expect: { kind: 'fail' } },
+      { use: 'lock.personal', label: '9-b 個人（正しいパスワード）', mode: 'personal', params: { connection: P, prompt: 'login' }, expect: { kind: 'observe' } }] },
 ];
 
 // ---- 保存（このブラウザだけ。共有は Markdown コピーで） ----
@@ -193,6 +195,11 @@ function judge(launch, claims, error) {
   const e = launch.expect;
   const conn = claims?.[NS + 'connection'];
   const notes = [];
+  if (error?.startsWith('cancelled')) {
+    return { verdict: '要確認', notes: [e.kind === 'fail'
+      ? 'ポップアップを閉じた。Auth0 の画面でエラーになっていたなら判定を OK にする'
+      : 'ログインを完了せずにポップアップを閉じた'] };
+  }
   if (error) {
     if (e.kind === 'fail') return { verdict: 'OK', notes: ['想定どおりエラー: ' + error] };
     if (e.kind === 'observe') return { verdict: '要確認', notes: ['エラー: ' + error] };
@@ -243,6 +250,7 @@ function renderCases() {
           ${['', 'OK', 'NG', '要確認'].map((v) => `<option value="${v}" ${res.verdict === v ? 'selected' : ''}>${v || '判定…'}</option>`).join('')}
         </select>
       </div>
+      <p class="muted">${credLine(l.use)}</p>
       ${res.notes?.length ? `<p class="muted">${res.notes.map(esc).join('<br>')}</p>` : ''}`;
     }).join('');
     const reset = c.reset ? `<div class="row">
@@ -264,8 +272,7 @@ function renderLast(entry) {
   const el = document.getElementById('last');
   if (!entry) { el.innerHTML = ''; return; }
   const c = entry.claims || {};
-  const url = entry.authorizeUrl ? new URL(entry.authorizeUrl) : null;
-  const params = url ? [...url.searchParams].filter(([k]) => !['code_challenge', 'state', 'nonce', 'auth0Client'].includes(k)) : [];
+  const params = Object.entries(entry.params || {});
   el.innerHTML = `<h2>最新の結果</h2>
     <div class="card result">
       <div class="case-head"><span class="case-id">${esc(entry.title)}</span>${chip(entry.verdict)}<span class="muted">${esc(entry.at)}</span></div>
@@ -281,7 +288,7 @@ function renderLast(entry) {
       </table>
       <details><summary>送った authorize パラメータ</summary>
         <table>${params.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</table>
-        <pre>${esc(entry.authorizeUrl || '')}</pre>
+        <p class="muted">ほかに PKCE の code_challenge、state、nonce、response_mode=web_message が付く。</p>
       </details>
       <details><summary>ID Token のクレーム（生）</summary><pre>${esc(JSON.stringify(c, null, 2))}</pre></details>
     </div>`;
@@ -296,51 +303,65 @@ async function loadAccounts() {
     el.innerHTML = '<tr><td class="muted">accounts.json を読み込めなかった</td></tr>';
     return;
   }
-  const pw = (v) => `<code data-copy="${esc(v)}" style="cursor:pointer" title="クリックでコピー">${esc(v)}</code>`;
   el.innerHTML = `<tr><th style="width:auto">メール</th><th style="width:auto">personal</th><th style="width:auto">corporate</th><th style="width:auto">用途</th></tr>`
-    + accounts.map((a) => `<tr><td>${esc(a.email)}</td><td>${pw(a.personal)}</td><td>${pw(a.corporate)}</td><td>${esc(a.purpose)}</td></tr>`).join('');
+    + accounts.map((a) => `<tr><td>${esc(a.email)}</td><td>${pwCode(a.personal)}</td><td>${pwCode(a.corporate)}</td><td>${esc(a.purpose)}</td></tr>`).join('');
+}
+
+const pwCode = (v) => `<code data-copy="${esc(v)}" style="cursor:pointer" title="クリックでコピー">${esc(v)}</code>`;
+const SIGNUP_PASSWORD = 'Signup-Test-1a';
+function cred(use) {
+  const [tag, kind] = use.split('.');
+  if (kind === 'signup') {
+    const base = accounts[0]?.email || '';
+    return { email: base.replace(/\+[^@]*@/, `+${tag}@`), password: SIGNUP_PASSWORD, label: '新規登録（未使用のメール）' };
+  }
+  const a = accounts.find((x) => x.tag === tag) || {};
+  if (kind === 'new') return { email: a.email, password: null, label: 'リセットで設定した新パスワード' };
+  if (kind === 'wrong') return { email: a.email, password: 'Wrong-Password-1', label: 'わざと間違えるパスワード' };
+  return { email: a.email, password: a[kind], label: `${tag} の ${kind} 用パスワード` };
+}
+function credLine(use) {
+  const c = cred(use);
+  return `アカウント ${esc(c.email || '（accounts.json 未読込）')} ／ ${esc(c.label)}${c.password ? ' ' + pwCode(c.password) : ''}`;
 }
 
 // ---- Auth0 ----
 let client;
-async function login(params, appState) {
-  await client.loginWithRedirect({
-    authorizationParams: params,
-    appState,
-    openUrl(url) {
-      sessionStorage.setItem('poc:authorizeUrl', url);
-      window.location.assign(url);
-    },
-  });
+// ポップアップはクリック直後に同期で開く（await を挟むとブロックされる）。ページの右側に寄せて、元のページが見えるようにする。
+function openPopup() {
+  const w = 460, h = 720;
+  const left = Math.max(0, window.screenX + window.outerWidth - w - 20);
+  const top = window.screenY + 60;
+  return window.open('', 'auth0:authorize:popup', `left=${left},top=${top},width=${w},height=${h},resizable,scrollbars=yes`);
 }
 
-async function handleCallback() {
-  const q = new URLSearchParams(location.search);
-  if (!q.has('state') || !(q.has('code') || q.has('error'))) return;
-  const authorizeUrl = sessionStorage.getItem('poc:authorizeUrl');
-  let appState = {}, claims = null, error = null;
+async function login(popup, params, meta) {
+  const sent = { ...client.options?.authorizationParams, ...params };
+  let claims = null, error = null;
   try {
-    ({ appState = {} } = await client.handleRedirectCallback());
+    // ケース 9 のように何度も入力するので、タイムアウトは長めにする
+    await client.loginWithPopup({ authorizationParams: params }, { popup, timeoutInSeconds: 900 });
     claims = await client.getIdTokenClaims();
   } catch (e) {
-    error = [e.error, e.error_description || e.message].filter(Boolean).join(': ');
-    appState = e.appState || store.get('pending', {});
+    error = e.error === 'cancelled' ? 'cancelled（ポップアップを閉じた）' : [e.error, e.error_description || e.message].filter(Boolean).join(': ');
   }
-  history.replaceState(null, '', RETURN_TO);
 
   const at = new Date().toLocaleString();
   let entry;
-  if (appState.caseId) {
-    const c = CASES.find((x) => x.id === appState.caseId);
-    const launch = c.launches[appState.idx];
-    const key = c.launches.length > 1 ? `${c.id}#${appState.idx}` : c.id;
+  if (meta) {
+    const c = CASES.find((x) => x.id === meta.caseId);
+    const launch = c.launches[meta.idx];
+    const key = c.launches.length > 1 ? `${c.id}#${meta.idx}` : c.id;
     const { verdict, notes } = judge(launch, claims, error);
-    entry = { title: `ケース ${c.id}：${launch.label}`, verdict, notes, claims, error, authorizeUrl, at };
+    entry = { title: `ケース ${c.id}：${launch.label}`, verdict, notes, claims, error, params: sent, at };
     saveResult(key, entry);
   } else {
-    entry = { title: '自由入力', verdict: error ? 'NG' : '要確認', notes: [], claims, error, authorizeUrl, at };
+    entry = { title: '自由入力', verdict: error ? 'NG' : '要確認', notes: [], claims, error, params: sent, at };
   }
   store.set('last', entry);
+  renderCases();
+  renderLast(entry);
+  document.getElementById('last').scrollIntoView({ behavior: 'smooth' });
 }
 
 function exportMarkdown() {
@@ -370,9 +391,12 @@ document.addEventListener('click', async (ev) => {
   if (t.dataset.launch) {
     const [id, idx] = t.dataset.launch.split(':');
     const launch = CASES.find((c) => c.id === id).launches[+idx];
-    const appState = { caseId: id, idx: +idx };
-    store.set('pending', appState);
-    await login(launch.params, appState);
+    const popup = openPopup();
+    const c = cred(launch.use);
+    if (c.password) navigator.clipboard.writeText(c.password).catch(() => {});
+    const params = { ...launch.params };
+    if (c.email) params.login_hint = c.email;
+    await login(popup, params, { caseId: id, idx: +idx });
   } else if (t.dataset.reset) {
     const email = document.getElementById('reset-email').value.trim();
     const msg = document.getElementById('reset-msg');
@@ -390,8 +414,7 @@ document.addEventListener('click', async (ev) => {
     if (v('free-prompt')) params.prompt = v('free-prompt');
     if (v('free-hint')) params.screen_hint = v('free-hint');
     if (v('free-login-hint')) params.login_hint = v('free-login-hint');
-    store.set('pending', {});
-    await login(params, {});
+    await login(openPopup(), params, null);
   } else if (t.id === 'btn-logout') {
     await client.logout({ logoutParams: { returnTo: RETURN_TO } });
   } else if (t.id === 'btn-export') {
@@ -420,7 +443,6 @@ document.addEventListener('input', (ev) => {
     clientId: CONFIG.clientId,
     authorizationParams: { redirect_uri: RETURN_TO, scope: 'openid profile email' },
   });
-  await handleCallback();
   await loadAccounts();
   // ケース 6 のリセット先は jiro（未入力のときだけ補う）
   if (!store.get('resetEmail', '')) store.set('resetEmail', accounts.find((a) => a.tag === 'jiro')?.email || '');
