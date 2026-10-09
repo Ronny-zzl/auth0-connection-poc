@@ -80,7 +80,7 @@
   .issues { display: grid; gap: 14px; counter-reset: q; }
   .issue { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 10px; min-width: 0; }
   .issue h3 { display: flex; gap: .6em; align-items: baseline; }
-  .issue h3::before { counter-increment: q; content: "Q" counter(q); font: 500 .8rem var(--font-mono); color: var(--accent); }
+  .issues .issue h3::before { counter-increment: q; content: "Q" counter(q); font: 500 .8rem var(--font-mono); color: var(--accent); }
   .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 10px; }
   .options.two { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
   @media (max-width: 640px) { .options.two { grid-template-columns: 1fr; } }
@@ -90,6 +90,11 @@
   .opt.rec { border-top-color: var(--accent); }
   .tag { font: 500 .7rem/1 var(--font-mono); color: var(--accent); background: var(--accent-soft); padding: 3px 6px; border-radius: 3px; margin-left: .4em; vertical-align: 2px; }
 
+  .decisions { display: grid; gap: 14px; }
+  .decision { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 8px; padding: 18px; display: grid; gap: 10px; min-width: 0; }
+  .decision h3 { display: flex; gap: .6em; align-items: baseline; flex-wrap: wrap; }
+  .decision h3::before { content: "決定"; font: 500 .7rem/1 var(--font-mono); color: var(--accent); background: var(--accent-soft); padding: 4px 6px; border-radius: 3px; }
+  .later { color: var(--muted); font-size: .88rem; }
   .confirmed li::marker { content: "✓  "; color: var(--accent); }
   footer { font-size: .8rem; color: var(--muted); display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: 16px; }
 </style>
@@ -97,9 +102,9 @@
 <body>
 <div class="wrap">
   <header style="display:grid;gap:10px">
-    <span class="eyebrow">討議用メモ · 2026-10-08 更新</span>
+    <span class="eyebrow">討議用メモ · 2026-10-09 更新</span>
     <h1>個人／法人ログインの画面構成</h1>
-    <p class="lead">Auth0 の Universal Login を使う前提で、ログイン画面をどう分担するかを決めたい。PoC の結果と、決める必要がある論点をまとめた。</p>
+    <p class="lead">Auth0 の Universal Login を使う前提で、ログイン画面をどう分担するかを決めたい。PoC の結果、決まったこと、まだ決める必要がある論点をまとめた。</p>
   </header>
 
   <section>
@@ -118,12 +123,12 @@
     <div class="flow" aria-label="ログインの流れ">
       <div class="step app">
         <span class="where">アプリの画面</span>
-        <h3>モードと法人を選ぶ</h3>
-        <p>個人／法人タブ、法人名の検索、法人番号の選択。パスワードは扱わない。</p>
+        <h3>個人か法人かを選ぶ</h3>
+        <p>個人／法人タブだけ。法人のメールアドレスは重複しないので、ログイン前に法人を選ぶ必要はない。</p>
       </div>
       <span class="arrow" aria-hidden="true">→</span>
       <div class="step auth0">
-        <span class="where">Auth0 の画面（/u/login）</span>
+        <span class="where">Auth0 の画面（auth.〇〇.jp）</span>
         <h3>メールとパスワード</h3>
         <p>選ばれた connection の入力欄だけが出る。リセット、MFA、ロックもここで処理される。</p>
       </div>
@@ -131,7 +136,7 @@
       <div class="step app">
         <span class="where">アプリ／バックエンド</span>
         <h3>トークンを検証する</h3>
-        <p>connection が選択したモードと一致するか、法人番号に所属しているかを確認する。</p>
+        <p>connection が選択したモードと一致するかを確認し、<code>app_metadata</code> から法人番号と役割を取り出す。</p>
       </div>
     </div>
   </section>
@@ -144,12 +149,64 @@
         <thead><tr><th>項目</th><th>現在の sample</th><th>Universal Login 採用時</th></tr></thead>
         <tbody>
           <tr><th>個人／法人タブ</th><td>アプリのログイン画面</td><td>アプリの画面（変わらない）</td></tr>
-          <tr><th>法人名の検索・選択</th><td>アプリのログイン画面</td><td>アプリの画面（変わらない）</td></tr>
+          <tr><th>法人名の検索・選択</th><td>アプリのログイン画面</td><td class="changed">不要。ログインしたアカウントから法人が決まる</td></tr>
           <tr><th>メール・パスワード入力</th><td>アプリのログイン画面</td><td class="changed">Auth0 の画面に移る</td></tr>
-          <tr><th>Auth0 画面の見た目</th><td>なし</td><td class="changed">個人・法人とも同じ見た目（標準のまま）</td></tr>
+          <tr><th>Auth0 画面の見た目</th><td>なし</td><td class="changed">自社のロゴ・色・日本語の文言。個人・法人とも同じ見た目</td></tr>
           <tr><th>所属チェック</th><td>ログイン画面の処理内</td><td class="changed">認証後に Action かバックエンドで行う</td></tr>
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>決まったこと</h2>
+    <div class="decisions">
+      <div class="decision">
+        <h3>法人のログイン ID はメールアドレスで、法人間で重複させない</h3>
+        <p>1 つのメールアドレスで持てる法人アカウントは 1 つだけ。複数の子会社で利用する人は、子会社ごとに別のメールアドレスを使う。法人番号＋ユーザー名＋パスワードの 3 項目ログインは採らない。</p>
+        <p>個人と法人は別の connection なので、同じメールアドレスで個人アカウントと法人アカウントを 1 つずつ持つことはできる（PoC で確認済み）。</p>
+      </div>
+
+      <div class="decision">
+        <h3>法人アカウントはシステムが発行し、セルフサインアップは許可しない</h3>
+        <p>申込フォームの送信後、法人管理者と各受検者のアカウントをまとめて発行する。<code>corporate-database</code> の Disable Sign Ups を有効にする。発行はバックエンドから Auth0 の Management API で行い、法人番号と役割（管理者／受検者）は <code>app_metadata</code> に持たせる。</p>
+        <p>受検者は全員メールアドレスを持ち、通知も本人に直接届く前提。パスワードを忘れたときは本人がメールでリセットできる。受検者が多い法人では、API を 1 件ずつ呼ぶとレート制限にかかるおそれがあるので、一括インポートも検討する。</p>
+      </div>
+
+      <div class="decision">
+        <h3>ログイン画面は「Auth0 だと気づかれない」最低限の対応から始める</h3>
+        <p>一般の利用者が、外部の認証サービスを使っていると意識しない状態を目指す。そのために必要な対応は次のとおり。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Auth0 が見える箇所</th><th>対応</th><th>条件</th></tr></thead>
+            <tbody>
+              <tr><th>アドレスバーのドメイン</th><td>カスタムドメイン（例：<code>auth.〇〇.jp</code>）を設定する</td><td>Free プランでも可。ただしクレジットカードの登録が必要（課金はされない）</td></tr>
+              <tr><th>ログイン枠の下の Auth0 の透かし</th><td>非表示にする</td><td class="changed">有料プランが必要（Free では消せない）</td></tr>
+              <tr><th>ログイン枠のロゴ</th><td>テーマエディタで自社ロゴに差し替える</td><td>Free でも可</td></tr>
+              <tr><th>色・フォント・角丸・背景</th><td>テーマエディタで自社のデザインに合わせる（フォントは WOFF を指定）</td><td>Free でも可</td></tr>
+              <tr><th>画面の文言</th><td>すべての画面を日本語化し、テナント名などが出ないようにする</td><td>Free でも可</td></tr>
+              <tr><th>メールの送信元とリンク</th><td>自社のメール送信サービス（SMTP、SendGrid など）とメールテンプレートを設定する。リンクはカスタムドメインになる</td><td>Free でも可</td></tr>
+              <tr><th>エラー画面</th><td>テナント設定で自社のエラーページに転送する</td><td>対象プランを確認する</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>この対応で、利用者からは「自社ロゴと配色のログイン画面」に見える。ただし、ログイン枠の中の部品は Auth0 のものなので、アプリのほかの画面とは細部の見た目が少し異なる。また、URL のパス（<code>/u/login</code> など）や開発者ツールで見えるスクリプト・Cookie からは、技術者なら Auth0 だと分かる。</p>
+        <p class="later"><b>アプリと完全にデザインを統一する場合の条件</b>（今回は見送り、必要になった段階で再検討）</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>段階</th><th>できること</th><th>条件</th></tr></thead>
+            <tbody>
+              <tr><th>Page Templates</th><td>ログイン枠の外側に、アプリと同じヘッダー・フッター・CSS を置く。枠の中はほぼ変えられない</td><td>カスタムドメイン、有料プラン（Free では API が 402 Payment Required を返す）、設定は Management API から</td></tr>
+              <tr><th>ACUL</th><td>Auth0 の SDK と自前のフロントエンドで画面全体を作り、デザインシステムと完全に揃える。セキュリティ処理は Auth0 側のまま</td><td>カスタムドメイン、有料プラン（対象プランは要確認）、画面ごとのフロントエンド開発と保守の工数</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="decision">
+        <h3>Auth0 Organizations は使わない</h3>
+        <p>法人数は 100 を超える見込みで、Organizations を無制限に使えるプランは費用が高い。法人のメールアドレスを重複させない方針にしたため、1 つのアカウントを複数の法人で使い分ける必要もない。</p>
+      </div>
     </div>
   </section>
 
@@ -158,27 +215,20 @@
     <div class="issues">
       <div class="issue">
         <h3>Auth0 の画面で、個人と法人を見分けられるようにするか</h3>
-        <p>PoC テナントで試したところ、<b>文言のカスタマイズでは connection ごとに表示を変えられない</b>。変数 <code>${connectionName}</code> はデータベースのログイン画面では空になる。一方、アプリ名の <code>${clientName}</code> は表示される。</p>
+        <p>PoC テナントで試したところ、<b>文言のカスタマイズでは connection ごとに表示を変えられない</b>。変数 <code>${connectionName}</code> はデータベースのログイン画面では空になる。一方、アプリ名の <code>${clientName}</code> は表示される。最低限の対応の範囲では、次の 2 案になる。</p>
         <div class="options two">
           <div class="opt rec">
-            <b>標準のまま<span class="tag">工数小</span></b>
-            <p>Dashboard でロゴ・色・日本語の文言を設定するだけ。どちらのモードでも同じ画面になる。直前のアプリ画面でモードは選んでいるので、混乱は少ないと考えられる。</p>
+            <b>見分けない<span class="tag">工数小</span></b>
+            <p>個人・法人とも同じログイン画面にする。直前のアプリ画面でモードは選んでいるので、混乱は少ないと考えられる。</p>
           </div>
           <div class="opt">
             <b>アプリを個人用・法人用に分ける<span class="tag">一部検証済み</span></b>
-            <p>Application を 2 つ作り、それぞれ 1 つの connection だけを有効にする。アプリ名が画面に出るので「法人ログイン」などと表示でき、カスタムドメインも不要。</p>
+            <p>Application を 2 つ作り、それぞれ 1 つの connection だけを有効にする。アプリ名が画面に出るので「法人ログイン」などと表示できる。</p>
             <p>検証済み：別の connection を指定すると Auth0 が拒否する（<code>the connection is not enabled</code>）ので、connection の書き換えが効かない。<code>connection</code> を付けなくても正しい DB の画面になる。</p>
             <p>代償：Client ID が 2 つになり、バックエンドは 2 種類の <code>aud</code> を受け付ける必要がある。</p>
           </div>
-          <div class="opt">
-            <b>Page Templates で出し分け</b>
-            <p>Liquid テンプレートでログイン枠の周りを変える。カスタムドメインが必須（Dashboard 上でも、テンプレートの定義が先に必要と表示される）。設定は Management API からのみ。</p>
-          </div>
-          <div class="opt">
-            <b>ACUL で画面を作る</b>
-            <p>Auth0 の SDK を使って自前のフロントエンドで画面を作る。セキュリティ処理は Auth0 側のまま。Dashboard の Advanced mode で、カスタムドメインが必須と表示される。</p>
-          </div>
         </div>
+        <p class="later">Page Templates と ACUL でも出し分けられるが、上の「完全に統一する場合」と同じ条件が要るので、今回は対象外とする。</p>
       </div>
 
       <div class="issue">
@@ -197,15 +247,18 @@
       </div>
 
       <div class="issue">
-        <h3>法人アカウントのセルフサインアップを許可するか<span class="tag">決定</span></h3>
-        <p><b>許可しない。</b>法人のアカウントは、申込フォームの送信後にシステムが発行する（法人管理者と各受検者の分をまとめて）。そのため <code>corporate-database</code> の Disable Sign Ups を有効にする。</p>
-        <p>発行はバックエンドから Auth0 の Management API で行い、<code>connection</code> に <code>corporate-database</code> を指定する。法人番号と役割（管理者／受検者）は <code>app_metadata</code> に持たせる。PoC では、<code>connection</code> を指定するとその DB に登録され、指定しないと個人の DB に登録されることを確認している。</p>
-        <p>受検者は全員メールアドレスを持ち、通知も本人に直接届く前提。ログイン ID はメールアドレスでよく、パスワードを忘れたときも本人がメールでリセットできる。受検者が多い法人では、API を 1 件ずつ呼ぶとレート制限にかかるおそれがあるので、一括インポートも検討する。</p>
-      </div>
-
-      <div class="issue">
-        <h3>カスタムドメイン（例：<code>auth.〇〇.jp</code>）を使うか</h3>
-        <p>ログイン画面の URL が自社ドメインになる。Page Templates と ACUL の前提条件でもあるので、Q1 で出し分けを選ぶならセットで決める。</p>
+        <h3>アカウント発行時に、メールアドレスが他の法人と重複していたらどうするか</h3>
+        <p>法人のメールアドレスは重複させないので、すでに別の法人で使われているアドレスでは Auth0 にユーザーを作れない（API がエラーを返す）。どこで検知し、誰にどう伝えるかを決める。</p>
+        <div class="options two">
+          <div class="opt">
+            <b>申込フォームで検知する</b>
+            <p>入力時に「このメールアドレスは使用できません」と伝え、別のアドレスを入れてもらう。発行時の失敗はなくなるが、他の法人で登録済みだと推測できてしまうので、文言を工夫する。</p>
+          </div>
+          <div class="opt">
+            <b>発行処理で検知する</b>
+            <p>重複したユーザーだけ発行を保留し、法人の担当者に別のアドレスを依頼する。フォームは単純になるが、受検者の一部だけ発行が遅れる。</p>
+          </div>
+        </div>
       </div>
 
       <div class="issue">
@@ -231,15 +284,15 @@
   <section>
     <h2>まだ確認できていないこと</h2>
     <ul>
-      <li>Page Templates と ACUL が、どの料金プランで使えるか。ドキュメントに明記がないので Auth0 に確認する。</li>
+      <li>どの有料プランで、Auth0 の透かしを消せるか。将来のために、Page Templates と ACUL の対象プランも合わせて確認する。</li>
+      <li>エラー画面を自社ページに転送する設定が、どのプランで使えるか。</li>
       <li>アプリを分ける案で、2 つのアプリ間の SSO セッションの挙動と、実際のログインからトークン取得までの流れ。</li>
-      <li>PoC テナントは試用期間中（残り約 3 週間）で、Free プランにない機能も使える状態。料金プランを確認するときは、この点に注意する。</li>
-      <li>Auth0 Organizations で法人を管理する方式との比較。</li>
+      <li>PoC テナントは試用期間中で、Free プランにない機能も使える状態。プランを確認するときは、この点に注意する。</li>
     </ul>
   </section>
 
   <footer>
-    <span>参考：<a href="https://auth0.com/docs/authenticate/login/auth0-universal-login/universal-login-vs-classic-login" target="_blank" rel="noopener">Universal Login vs. Classic Login</a> ／ <a href="https://auth0.com/docs/customize/login-pages/universal-login/customize-templates" target="_blank" rel="noopener">Page Templates</a> ／ <a href="https://auth0.com/docs/customize/login-pages/advanced-customizations" target="_blank" rel="noopener">Advanced Customizations (ACUL)</a></span>
+    <span>参考：<a href="https://auth0.com/docs/authenticate/login/auth0-universal-login/universal-login-vs-classic-login" target="_blank" rel="noopener">Universal Login vs. Classic Login</a> ／ <a href="https://auth0.com/docs/customize/login-pages/universal-login/customize-templates" target="_blank" rel="noopener">Page Templates</a> ／ <a href="https://auth0.com/docs/customize/login-pages/advanced-customizations" target="_blank" rel="noopener">Advanced Customizations (ACUL)</a> ／ <a href="https://support.auth0.com/center/s/article/remove-auth0-watermark-branding-from-universal-login-screen" target="_blank" rel="noopener">透かしの削除</a> ／ <a href="https://support.auth0.com/center/s/article/Using-Custom-Domains-with-Free-Tenants" target="_blank" rel="noopener">Free プランのカスタムドメイン</a></span>
     <span>PoC：<a href="https://ronny-zzl.github.io/auth0-connection-poc/" target="_blank" rel="noopener">検証ページ</a></span>
   </footer>
 </div>
